@@ -1,20 +1,14 @@
-use std::num::NonZeroU8;
-
 use rydis::{
-    Instruction, MachineMode, MemOperand, MemOperandIndex, Mnemonic, Operand, Prefixes, Register,
-    StackWidth,
+    Instruction, MachineMode, MemOperand, Mnemonic, Operand, Prefixes, Register, StackWidth,
 };
 
 fn main() -> rydis::Result<()> {
-    let state = rydis::RydisState::new(
-        MachineMode::ZYDIS_MACHINE_MODE_LONG_64,
-        StackWidth::ZYDIS_STACK_WIDTH_64,
-    )?;
+    let state = rydis::RydisState::new(MachineMode::Long64, StackWidth::Width64)?;
 
     // encode an instruction
     let encoded = state.encode(Instruction {
         prefixes: Prefixes::empty(),
-        mnemonic: Mnemonic::ZYDIS_MNEMONIC_XCHG,
+        mnemonic: Mnemonic::XCHG,
         operands: [Operand::Reg(Register::RAX), Operand::Reg(Register::RBX)]
             .into_iter()
             .collect(),

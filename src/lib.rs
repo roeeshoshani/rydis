@@ -428,6 +428,54 @@ pub enum Operand {
     Reg(Register),
 }
 impl Operand {
+    pub fn as_imm(&self) -> Option<u64> {
+        match self {
+            Self::Imm(x) => Some(*x),
+            _ => None,
+        }
+    }
+    pub fn as_imm_mut(&mut self) -> Option<&mut u64> {
+        match self {
+            Self::Imm(x) => Some(x),
+            _ => None,
+        }
+    }
+    pub fn as_mem(&self) -> Option<&MemOperand> {
+        match self {
+            Self::Mem(x) => Some(x),
+            _ => None,
+        }
+    }
+    pub fn as_mem_mut(&mut self) -> Option<&mut MemOperand> {
+        match self {
+            Self::Mem(x) => Some(x),
+            _ => None,
+        }
+    }
+    pub fn as_ptr(&self) -> Option<&PtrOperand> {
+        match self {
+            Self::Ptr(x) => Some(x),
+            _ => None,
+        }
+    }
+    pub fn as_ptr_mut(&mut self) -> Option<&mut PtrOperand> {
+        match self {
+            Self::Ptr(x) => Some(x),
+            _ => None,
+        }
+    }
+    pub fn as_reg(&self) -> Option<Register> {
+        match self {
+            Self::Reg(x) => Some(*x),
+            _ => None,
+        }
+    }
+    pub fn as_reg_mut(&mut self) -> Option<&mut Register> {
+        match self {
+            Self::Reg(x) => Some(x),
+            _ => None,
+        }
+    }
     fn to_zydis_encoder_operand(&self) -> ZydisEncoderOperand {
         match self {
             Operand::Imm(imm) => ZydisEncoderOperand_ {
@@ -800,6 +848,22 @@ impl Register {
     pub fn to_segment_register(&self) -> Result<SegmentRegister> {
         SegmentRegister::from_register(*self)
     }
+
+    /// returns the width of this register, in bytes.
+    pub fn width(&self, state: &RydisState) -> u8 {
+        unsafe { ZydisRegisterGetWidth(state.machine_mode, self.to_raw()) as u8 / 8 }
+    }
+
+    /// returns the largest enclosing register of this register, or an error if the register is invalid for the active machine-mode.
+    pub fn largest_enclosing(&self, state: &RydisState) -> Result<Register> {
+        Register::from_raw(unsafe {
+            ZydisRegisterGetLargestEnclosing(state.machine_mode, self.to_raw())
+        })?
+        .ok_or(Error::RegisterNotValidInMachineMode {
+            register: *self,
+            machine_mode: state.machine_mode,
+        })
+    }
 }
 
 /// A segment register
@@ -901,6 +965,12 @@ pub enum Error {
 
     #[error("encountered an invalid operand type {0:x}")]
     InvalidOperandType(u32),
+
+    #[error("register {register:?} is not valid in machine mode {machine_mode:?}")]
+    RegisterNotValidInMachineMode {
+        register: Register,
+        machine_mode: MachineMode,
+    },
 }
 
 /// the result type of this crate.

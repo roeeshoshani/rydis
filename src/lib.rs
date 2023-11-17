@@ -142,7 +142,7 @@ impl RydisState {
             operand_width: raw_instruction.operand_width / 8,
             address_width: raw_instruction.address_width / 8,
             accessed_flags: unsafe { &*raw_instruction.cpu_flags },
-            len: raw_instruction.length,
+            len: raw_instruction.length as usize,
         };
         for i in 0..raw_instruction.operand_count {
             let raw_operand = &operands[i as usize];
@@ -194,6 +194,36 @@ impl RydisState {
             }
         }
         Ok(instruction)
+    }
+
+    /// returns an iterator which decodes instructions from the given buffer.
+    pub fn decode_iter<'a>(&self, buf: &'a [u8]) -> DecodeIter<'a> {
+        DecodeIter {
+            buf,
+            state: self.clone(),
+        }
+    }
+}
+
+/// an iterator which decodes instructions from a buffer.
+pub struct DecodeIter<'a> {
+    buf: &'a [u8],
+    state: RydisState,
+}
+impl<'a> Iterator for DecodeIter<'a> {
+    type Item = Result<DecodedInstruction>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.buf.is_empty() {
+            return None;
+        }
+        match self.state.decode_one(&self.buf) {
+            Ok(instruction) => {
+                self.buf = &self.buf[instruction.len..];
+                Some(Ok(instruction))
+            }
+            Err(err) => Some(Err(err)),
+        }
     }
 }
 
@@ -269,7 +299,7 @@ pub struct DecodedInstruction {
     pub accessed_flags: &'static AccessedFlags,
 
     /// the length of the instruction, in bytes.
-    pub len: u8,
+    pub len: usize,
 }
 
 impl DecodedInstruction {

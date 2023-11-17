@@ -6,8 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arrayvec = { version = "0.7.4", default-features = false }
 bitfield-struct = "0.5.5"
 bitflags = "2.4.1"
 num_enum = "0.7.1"
 thiserror-no-std = "2.0.2"
 zydis-sys = { path = "../zydis-sys" }
+
+[features]
+std = ["thiserror-no-std/std", "arrayvec/std"]

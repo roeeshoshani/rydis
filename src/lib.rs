@@ -195,6 +195,7 @@ impl RydisState {
         DecodeIter {
             buf,
             state: self.clone(),
+            cur_index: 0,
         }
     }
 }
@@ -202,22 +203,25 @@ impl RydisState {
 /// an iterator which decodes instructions from a buffer.
 pub struct DecodeIter<'a> {
     buf: &'a [u8],
+    cur_index: usize,
     state: RydisState,
 }
 impl<'a> Iterator for DecodeIter<'a> {
     type Item = Result<DecodedIterInstruction<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.buf.is_empty() {
+        if self.cur_index >= self.buf.len() {
             return None;
         }
-        match self.state.decode_one(&self.buf) {
+        match self.state.decode_one(&self.buf[self.cur_index..]) {
             Ok(instruction) => {
-                let instruction_bytes = &self.buf[..instruction.len];
-                self.buf = &self.buf[instruction.len..];
+                let instruction_bytes = &self.buf[self.cur_index..][..instruction.len];
+                let instruction_index = self.cur_index;
+                self.cur_index += instruction.len;
                 Some(Ok(DecodedIterInstruction {
                     bytes: instruction_bytes,
                     instruction,
+                    index_in_buffer: instruction_index,
                 }))
             }
             Err(err) => Some(Err(err)),
@@ -276,6 +280,9 @@ pub struct DecodedIterInstruction<'a> {
 
     /// the actual decoded instruction.
     pub instruction: DecodedInstruction,
+
+    /// the index of the first byte of this instruction in the decoded buffer.
+    pub index_in_buffer: usize,
 }
 
 /// an array of operands of an instruction.

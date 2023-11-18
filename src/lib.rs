@@ -205,7 +205,7 @@ pub struct DecodeIter<'a> {
     state: RydisState,
 }
 impl<'a> Iterator for DecodeIter<'a> {
-    type Item = Result<DecodedInstruction>;
+    type Item = Result<DecodedIterInstruction<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.buf.is_empty() {
@@ -213,8 +213,12 @@ impl<'a> Iterator for DecodeIter<'a> {
         }
         match self.state.decode_one(&self.buf) {
             Ok(instruction) => {
+                let instruction_bytes = &self.buf[..instruction.len];
                 self.buf = &self.buf[instruction.len..];
-                Some(Ok(instruction))
+                Some(Ok(DecodedIterInstruction {
+                    bytes: instruction_bytes,
+                    instruction,
+                }))
             }
             Err(err) => Some(Err(err)),
         }
@@ -262,6 +266,16 @@ bitflags::bitflags! {
         /// mask combining all writing access flags.
         const WRITE_MASK = ZydisOperandAction_::ZYDIS_OPERAND_ACTION_MASK_WRITE.0;
     }
+}
+
+/// information about a decoded instruction using the iterator decoder.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DecodedIterInstruction<'a> {
+    /// the bytes of the instruction
+    pub bytes: &'a [u8],
+
+    /// the actual decoded instruction.
+    pub instruction: DecodedInstruction,
 }
 
 /// information about a decoded instruction.

@@ -529,6 +529,8 @@ dependencies = [
 [[package]]
 name = "zydis-sys"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53fb394208ea0392aff97da25d753e58e21f4e3368cc34ef58a1ae4d7a1479d4"
 dependencies = [
  "bindgen",
  "cmake",

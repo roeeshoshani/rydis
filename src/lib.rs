@@ -29,6 +29,12 @@
 //!     segment_register_override: None,
 //! });
 //!
+//! // format it
+//! println!(
+//!     "modified insn: {}",
+//!     modified_instruction.format(&state, FormatStyle::Intel, Some(0x123400))?
+//! );
+//!
 //! // re-encode the modified instruction
 //! let re_encoded = state.encode(modified_instruction)?;
 //! ```
@@ -39,7 +45,7 @@ mod enums;
 
 use core::num::NonZeroU8;
 
-use arrayvec::ArrayVec;
+use arrayvec::{ArrayString, ArrayVec};
 use num_enum::FromPrimitive;
 use thiserror_no_std::Error;
 use zydis_sys::*;
@@ -48,6 +54,9 @@ pub use enums::*;
 
 /// the maximum length of an instruction, in bytes.
 pub const MAX_INSTRUCTION_LEN: usize = ZYDIS_MAX_INSTRUCTION_LENGTH as usize;
+
+/// the maximum length of a formatted instruction string, in bytes.
+pub const MAX_FORMATTED_INSTRUCTION_LEN: usize = 256;
 
 /// the maximum amount of operands of a single instruction.
 pub const MAX_OPERANDS_AMOUNT: usize = ZYDIS_MAX_OPERAND_COUNT as usize;
@@ -118,17 +127,6 @@ impl RydisState {
                 operands.as_mut_ptr(),
             )
         })?;
-
-        // debug
-        unsafe {
-            let mut req = ZydisEncoderRequest::default();
-            zyan_check(ZydisEncoderDecodedInstructionToEncoderRequest(
-                &raw_instruction,
-                operands.as_ptr(),
-                raw_instruction.operand_count_visible,
-                &mut req,
-            ))?;
-        }
 
         let mut instruction = DecodedInstruction {
             prefixes: Prefixes::from_bits_truncate(raw_instruction.attributes),
@@ -406,7 +404,62 @@ impl Instruction {
             ..Default::default()
         }
     }
+
+    /// formats this instruction into a string.
+    pub fn format(
+        &self,
+        state: &RydisState,
+        style: FormatStyle,
+        runtime_address: Option<u64>,
+    ) -> Result<FormattedInstruction> {
+        let mut formatter = ZydisFormatter::default();
+        zyan_check(unsafe { ZydisFormatterInit(&mut formatter, style.to_raw()) })?;
+
+        // to format an instruction using the zydis API we need a decoded instruction, so generate one by encoding and decoding
+        // this instruction.
+        let encoded = state.encode(self.clone())?;
+        let mut decoded_instruction = ZydisDecodedInstruction::default();
+        let mut decoded_operands = [ZydisDecodedOperand::default(); MAX_OPERANDS_AMOUNT];
+        zyan_check(unsafe {
+            ZydisDecoderDecodeFull(
+                &state.decoder,
+                encoded.as_ptr().cast(),
+                encoded.len() as u64,
+                &mut decoded_instruction,
+                decoded_operands.as_mut_ptr(),
+            )
+        })?;
+
+        let mut result = FormattedInstruction::new();
+        zyan_check(unsafe {
+            ZydisFormatterFormatInstruction(
+                &formatter,
+                &decoded_instruction,
+                decoded_operands.as_ptr(),
+                decoded_instruction.operand_count_visible,
+                result.as_bytes_mut().as_mut_ptr().cast(),
+                MAX_FORMATTED_INSTRUCTION_LEN as u64,
+                runtime_address.unwrap_or(u64::MAX),
+                core::ptr::null_mut(),
+            )
+        })?;
+
+        // calculate the length by finding the null byte
+        let len = unsafe {
+            core::slice::from_raw_parts(result.as_bytes().as_ptr(), MAX_FORMATTED_INSTRUCTION_LEN)
+        }
+        .iter()
+        .position(|byte| *byte == 0)
+        .ok_or_else(|| Error::FormattedInstructionTooLong(self.clone()))?;
+
+        unsafe { result.set_len(len) }
+
+        Ok(result)
+    }
 }
+
+/// a formatted instruction string.
+pub type FormattedInstruction = ArrayString<MAX_FORMATTED_INSTRUCTION_LEN>;
 
 /// an operand.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -622,6 +675,12 @@ impl StackWidth {
     }
 }
 
+impl FormatStyle {
+    fn to_raw(&self) -> ZydisFormatterStyle {
+        ZydisFormatterStyle_(*self as u32)
+    }
+}
+
 /// converts a zydis short string to a rust string
 unsafe fn zydis_short_str_to_str(short_str_ptr: *const ZydisShortString) -> &'static str {
     if short_str_ptr.is_null() {
@@ -737,6 +796,9 @@ pub enum Error {
         register: Register,
         machine_mode: MachineMode,
     },
+
+    #[error("formatted string is too long for instruction {0:?}")]
+    FormattedInstructionTooLong(Instruction),
 }
 
 /// the result type of this crate.

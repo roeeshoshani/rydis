@@ -8,6 +8,16 @@
 
 use zydis_sys::{ZydisMachineMode, ZydisStackWidth};
 
+/// the style to use when formatting an instruction
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[repr(u32)]
+pub enum FormatStyle {
+    /// generates `AT&T`-style disassembly.
+    ATT,
+    /// generates `intel`-style disassembly.
+    Intel,
+}
+
 /// the machine mode to decode instructions according to.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u32)]

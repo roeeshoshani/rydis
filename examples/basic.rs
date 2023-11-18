@@ -1,5 +1,6 @@
 use rydis::{
-    Instruction, MachineMode, MemOperand, Mnemonic, Operand, Prefixes, Register, StackWidth,
+    FormatStyle, Instruction, MachineMode, MemOperand, Mnemonic, Operand, Prefixes, Register,
+    StackWidth,
 };
 
 fn main() -> rydis::Result<()> {
@@ -27,6 +28,12 @@ fn main() -> rydis::Result<()> {
         size: decoded_instruction.operand_width,
         segment_register_override: None,
     });
+
+    // format it
+    println!(
+        "modified insn: {}",
+        modified_instruction.format(&state, FormatStyle::Intel, Some(0x123400))?
+    );
 
     // re-encode the modified instruction
     let re_encoded = state.encode(modified_instruction)?;

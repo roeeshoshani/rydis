@@ -278,6 +278,12 @@ pub struct DecodedIterInstruction<'a> {
     pub instruction: DecodedInstruction,
 }
 
+/// an array of operands of an instruction.
+pub type InstructionOperands = ArrayVec<Operand, MAX_OPERANDS_AMOUNT>;
+
+/// an array of operands of a decoded instruction.
+pub type DecodedInstructionOperands = ArrayVec<DecodedOperand, MAX_OPERANDS_AMOUNT>;
+
 /// information about a decoded instruction.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DecodedInstruction {
@@ -288,11 +294,11 @@ pub struct DecodedInstruction {
     pub mnemonic: Mnemonic,
 
     /// the instruction's explicit operands, which are the operands that are specified in the instruction's textual representation.
-    pub operands: ArrayVec<DecodedOperand, MAX_OPERANDS_AMOUNT>,
+    pub operands: DecodedInstructionOperands,
 
     /// the invisible operands of this instruction, which are operands that are used even though they are not directly specified
     /// in the instruction's textual representation.
-    pub invisible_operands: ArrayVec<DecodedOperand, MAX_OPERANDS_AMOUNT>,
+    pub invisible_operands: DecodedInstructionOperands,
 
     /// the width of the instruction's operands, in bytes
     pub operand_width: u8,
@@ -342,7 +348,7 @@ pub struct Instruction {
     pub mnemonic: Mnemonic,
 
     /// the instruction's explicit operands, which are the operands that are specified in the instruction's textual representation.
-    pub operands: ArrayVec<Operand, MAX_OPERANDS_AMOUNT>,
+    pub operands: InstructionOperands,
 }
 impl Instruction {
     /// returns the memory operand of this instruction, if any.

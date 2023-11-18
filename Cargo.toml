@@ -11,7 +11,7 @@ bitfield-struct = "0.5.5"
 bitflags = "2.4.1"
 num_enum = "0.7.1"
 thiserror-no-std = "2.0.2"
-zydis-sys = { path = "../zydis-sys" }
+zydis-sys = "0.1.0"
 
 [features]
 std = ["thiserror-no-std/std", "arrayvec/std"]

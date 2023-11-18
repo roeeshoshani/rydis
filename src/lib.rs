@@ -1,6 +1,6 @@
 //! this is a crate which allows encoding, decoding and working with x86 instructions in a very convenient and user-friendly way.
 //!
-//! it uses the `Zydis` library under the hook, but provides user-friendly wrappers around `Zydis`' interfaces to make it
+//! it uses the `Zydis` library under the hood, but provides user-friendly wrappers around `Zydis`' interfaces to make it
 //! easier to work with.
 //!
 //! # Example

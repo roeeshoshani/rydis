@@ -588,7 +588,7 @@ impl Register {
 
     /// returns the name of this register when written in assembly code.
     pub fn assembly_name(&self) -> &'static str {
-        unsafe { zydis_short_str_to_str(&*ZydisRegisterGetStringWrapped(self.to_raw())) }
+        unsafe { zydis_short_str_to_str(ZydisRegisterGetStringWrapped(self.to_raw())) }
     }
 }
 
@@ -602,6 +602,11 @@ impl Mnemonic {
     }
     fn to_raw(&self) -> ZydisMnemonic {
         ZydisMnemonic_(*self as u32)
+    }
+
+    /// returns the name of this mnemonic when written in assembly code.
+    pub fn assembly_name(&self) -> &'static str {
+        unsafe { zydis_short_str_to_str(ZydisMnemonicGetStringWrapped(self.to_raw())) }
     }
 }
 
@@ -617,9 +622,14 @@ impl StackWidth {
     }
 }
 
-unsafe fn zydis_short_str_to_str(short_str: &ZydisShortString) -> &'static str {
+/// converts a zydis short string to a rust string
+unsafe fn zydis_short_str_to_str(short_str_ptr: *const ZydisShortString) -> &'static str {
+    if short_str_ptr.is_null() {
+        return "<invalid>";
+    }
+    let short_str = &*short_str_ptr;
     let bytes = core::slice::from_raw_parts(short_str.data.cast::<u8>(), short_str.size as usize);
-    core::str::from_utf8_unchecked(bytes)
+    core::str::from_utf8(bytes).unwrap_or("<non utf-8>")
 }
 
 /// a segment register.

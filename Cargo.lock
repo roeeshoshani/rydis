@@ -336,7 +336,7 @@ dependencies = [
 
 [[package]]
 name = "rydis"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
  "arrayvec",
  "bitfield-struct",

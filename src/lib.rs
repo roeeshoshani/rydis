@@ -140,6 +140,27 @@ impl RydisState {
             accessed_flags: unsafe { &*raw_instruction.cpu_flags },
             len: raw_instruction.length as usize,
         };
+
+        // find the segment register override
+        let mut segment_register_override = None;
+        for (segment_register, attrib) in [
+            (SegmentRegister::CS, ZYDIS_ATTRIB_HAS_SEGMENT_CS),
+            (SegmentRegister::SS, ZYDIS_ATTRIB_HAS_SEGMENT_SS),
+            (SegmentRegister::DS, ZYDIS_ATTRIB_HAS_SEGMENT_DS),
+            (SegmentRegister::ES, ZYDIS_ATTRIB_HAS_SEGMENT_ES),
+            (SegmentRegister::FS, ZYDIS_ATTRIB_HAS_SEGMENT_FS),
+            (SegmentRegister::GS, ZYDIS_ATTRIB_HAS_SEGMENT_GS),
+        ] {
+            if raw_instruction.attributes & attrib != 0 {
+                if segment_register_override.is_some() {
+                    return Err(Error::MultipleSegmentOverrideAttributes(
+                        buf[..raw_instruction.length as usize].try_into().unwrap(),
+                    ));
+                }
+                segment_register_override = Some(segment_register);
+            }
+        }
+
         for i in 0..raw_instruction.operand_count {
             let raw_operand = &operands[i as usize];
             let operand = unsafe {
@@ -162,12 +183,7 @@ impl RydisState {
                             },
                             displacement: raw_operand.__bindgen_anon_1.mem.disp.value,
                             size: raw_instruction.operand_width / 8,
-                            segment_register_override: match Register::from_raw(
-                                raw_operand.__bindgen_anon_1.mem.segment,
-                            ) {
-                                Some(reg) => Some(SegmentRegister::from_register(reg)?),
-                                None => None,
-                            },
+                            segment_register_override,
                         }),
                         ZydisOperandType::ZYDIS_OPERAND_TYPE_IMMEDIATE => {
                             Operand::Imm(raw_operand.__bindgen_anon_1.imm.value.u)
@@ -826,6 +842,9 @@ pub enum Error {
 
     #[error("formatted string is too long for instruction {0:?}")]
     FormattedInstructionTooLong(Instruction),
+
+    #[error("instruction has multiple segment override attributes, code: {0:x?}")]
+    MultipleSegmentOverrideAttributes(EncodedInstructionBuf),
 }
 
 /// the result type of this crate.

@@ -185,9 +185,14 @@ impl RydisState {
                             size: raw_instruction.operand_width / 8,
                             segment_register_override,
                         }),
-                        ZydisOperandType::ZYDIS_OPERAND_TYPE_IMMEDIATE => {
-                            Operand::Imm(raw_operand.__bindgen_anon_1.imm.value.u)
-                        }
+                        ZydisOperandType::ZYDIS_OPERAND_TYPE_IMMEDIATE => Operand::Imm({
+                            let size_mask = if raw_instruction.operand_width == 64 {
+                                u64::MAX
+                            } else {
+                                (1 << raw_instruction.operand_width) - 1
+                            };
+                            raw_operand.__bindgen_anon_1.imm.value.u & size_mask
+                        }),
                         ZydisOperandType::ZYDIS_OPERAND_TYPE_POINTER => Operand::Ptr(PtrOperand {
                             segment: raw_operand.__bindgen_anon_1.ptr.segment,
                             offset: raw_operand.__bindgen_anon_1.ptr.offset,
